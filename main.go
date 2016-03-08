@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -25,7 +26,7 @@ var prog = filepath.Base(os.Args[0])
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage:\n")
-	fmt.Fprintf(os.Stderr, "  %s [IP]:PORT CMD [ARG..]\n", prog)
+	fmt.Fprintf(os.Stderr, "  %s [IP]:PORT[,...] CMD [ARG..]\n", prog)
 	flag.PrintDefaults()
 }
 
@@ -36,23 +37,26 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
-	l, err := net.Listen("tcp", flag.Arg(0))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: cannot listen: %v\n", prog, err)
-		os.Exit(1)
-	}
+	addrs := strings.Split(flag.Arg(0), ",")
+	for i, addr := range addrs {
+		l, err := net.Listen("tcp", addr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: cannot listen: %v\n", prog, err)
+			os.Exit(1)
+		}
 
-	tcp := l.(*net.TCPListener)
-	f, err := tcp.File()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: cannot get listening FD: %v\n", prog, err)
-		os.Exit(1)
+		tcp := l.(*net.TCPListener)
+		f, err := tcp.File()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: cannot get listening FD: %v\n", prog, err)
+			os.Exit(1)
+		}
+		if err := syscall.Dup2(int(f.Fd()), 3+i); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: cannot duplicate listening FD: %v\n", prog, err)
+			os.Exit(1)
+		}
 	}
-	if err := syscall.Dup2(int(f.Fd()), 3); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: cannot duplicate listening FD: %v\n", prog, err)
-		os.Exit(1)
-	}
-	os.Setenv("LISTEN_FDS", "1")
+	os.Setenv("LISTEN_FDS", strconv.FormatUint(uint64(len(addrs)), 10))
 	os.Setenv("LISTEN_PID", strconv.FormatUint(uint64(os.Getpid()), 10))
 
 	exe, err := exec.LookPath(flag.Arg(1))
