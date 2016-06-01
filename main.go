@@ -39,14 +39,24 @@ func main() {
 	}
 	addrs := strings.Split(flag.Arg(0), ",")
 	for i, addr := range addrs {
-		l, err := net.Listen("tcp", addr)
+		network := "tcp"
+		if strings.HasPrefix(addr, "/") {
+			network = "unix"
+			os.Remove(addr)
+		}
+		l, err := net.Listen(network, addr)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: cannot listen: %v\n", prog, err)
 			os.Exit(1)
 		}
 
-		tcp := l.(*net.TCPListener)
-		f, err := tcp.File()
+		var f *os.File
+		switch lt := l.(type) {
+		case *net.TCPListener:
+			f, err = lt.File()
+		case *net.UnixListener:
+			f, err = lt.File()
+		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: cannot get listening FD: %v\n", prog, err)
 			os.Exit(1)
