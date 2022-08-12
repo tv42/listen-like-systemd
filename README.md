@@ -3,7 +3,7 @@
 This program performs the parent side of [systemd's socket activation](https://0pointer.de/blog/projects/socket-activation.html) dance.
 This is useful for e.g. development, where you want to run a program like it was socket activated, but not create a systemd service for it.
 
-`listen-like-system` has pretty much been obsoleted by systemd's own [systemd-socket-activate](https://www.freedesktop.org/software/systemd/man/systemd-socket-activate.html) command, though I still prefer the calling convention used here.
+`listen-like-systemd` has pretty much been obsoleted by systemd's own [systemd-socket-activate](https://www.freedesktop.org/software/systemd/man/systemd-socket-activate.html) command, though I still prefer the calling convention used here.
 
 ## Bugs
 
